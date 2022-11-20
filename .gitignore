@@ -1,0 +1,4 @@
+/.tox
+*.swp
+config/secrets.yaml
+/**/.pio
