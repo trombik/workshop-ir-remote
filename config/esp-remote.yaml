@@ -1,0 +1,119 @@
+---
+esphome:
+  name: esp-remote
+
+esp32:
+  board: nodemcu-32s
+  framework:
+    type: arduino
+    # use specific versions that work on my machine. the defaults, or
+    # "recommended versions" should work.
+    version: 2.0.5
+    platform_version: 5.2.0
+
+# Enable logging
+logger:
+  level: debug
+
+api:
+  # this node is for workshop only, no Home Assistant is available
+  reboot_timeout: 0s
+
+ota:
+  password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "esp-remote Fallback Hotspot"
+    password: "1234567890"
+
+captive_portal:
+
+# enable Web interface to control the node over WiFi
+web_server:
+
+button:
+
+  # this button is one that you can "press" on Web interface, not a physical
+  # one.
+  - platform: template
+    name: "Turn off A/C (Wifi)"
+    on_press:
+      then:
+        - script.execute: turn_off_ac
+
+remote_transmitter:
+
+  # define GPIO pin to drive transmiter LED.
+  pin: GPIO33
+  carrier_duty_percent: 50%
+
+binary_sensor:
+
+  # a physical button to send remote code
+  - platform: gpio
+    name: "Turn off A/C (physical button)"
+    pin:
+      number: 25
+
+      # an exernal pullup is connected to the button
+      inverted: true
+    filters:
+
+      # basic workaround for bounce
+      - delayed_on: 10ms
+    on_press:
+      then:
+
+        # when pressed, send the remote code
+        - script.execute: turn_off_ac
+
+# the automation that sends the remote code. call this script by
+# `script.execute: turn_off_ac`.
+script:
+  - id: turn_off_ac
+    then:
+      - logger.log: "Turn off A/C"
+
+      # Protocol  : SHARP_AC
+      # Code      : 0xAA5ACF1000213000088000F031 (104 Bits)
+      # Mesg Desc.: Model: 3 (A903), Power: Off, Mode: 0 (Fan), Temp: 15C, Fan: 3 (Low), Swing(V): 0 (N/A), Turbo: Off, Ion: Off, Light: -, Clean: Off
+      - repeat:
+          count: 3
+          then:
+            - remote_transmitter.transmit_raw:
+                carrier_frequency: 38kHz
+                code: [
+                  +3850, -1918, +524, -470, +550, -1390, +524, -472,
+                  +524, -1414, +524, -472, +548, -1392, +524, -470,
+                  +524, -1416, +524, -470, +528, -1414, +548, -446,
+                  +550, -1392, +524, -1414, +526, -468, +550, -1388,
+                  +552, -444, +554, -1386, +554, -1384, +554, -1386,
+                  +558, -1384, +558, -436, +586, -410, +586, -1354,
+                  +588, -1378, +562, -434, +564, -432, +564, -432,
+                  +562, -434, +562, -1378, +562, -434, +560, -436,
+                  +562, -434, +560, -436, +560, -438, +558, -436,
+                  +560, -436, +558, -436, +558, -438, +556, -438,
+                  +556, -440, +554, -1358, +580, -444, +550, -420,
+                  +550, -446, +548, -446, +576, -1364, +550, -446,
+                  +550, -444, +550, -446, +550, -446, +548, -448,
+                  +548, -448, +548, -1392, +548, -1394, +546, -450,
+                  +546, -450, +544, -452, +544, -452, +544, -454,
+                  +544, -452, +542, -454, +542, -454, +540, -456,
+                  +540, -456, +540, -456, +540, -458, +536, -460,
+                  +536, -1426, +514, -482, +514, -482, +488, -508,
+                  +488, -508, +488, -508, +488, -508, +488, -508,
+                  +488, -508, +488, -510, +486, -510, +486, -512,
+                  +486, -1454, +484, -512, +484, -512, +484, -514,
+                  +482, -514, +482, -514, +480, -516, +480, -518,
+                  +478, -518, +478, -518, +480, -518, +478, -518,
+                  +478, -518, +478, -1462, +478, -1464, +478, -1464,
+                  +478, -1486, +454, -1486, +454, -544, +452, -544,
+                  +454, -542, +454, -1486, +454, -1486, +454, -542,
+                  +454, -542, +454
+                ]
+            - delay: 200ms
